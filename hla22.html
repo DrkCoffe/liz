@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Efecto escribiendo</title>
+  <style>
+    :root{
+      --bg:#0b0b0f;
+      --text:#e6f1ff;
+      --accent:#6ee7b7;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;
+    }
+    html,body{height:100%;margin:0}
+    body{
+      background:var(--bg);
+      color:var(--text);
+      font-family: var(--mono);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      -webkit-font-smoothing:antialiased;
+    }
+    .card{
+      max-width:900px;
+      width:100%;
+      border-radius:12px;
+      padding:28px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    }
+    .typewrap{
+      font-size:1.25rem;
+      line-height:1.6;
+      white-space:pre-wrap;
+      word-break:break-word;
+      min-height:4.5rem;
+    }
+    .cursor{
+      display:inline-block;
+      width:10px;
+      margin-left:4px;
+      background:var(--accent);
+      vertical-align:bottom;
+      animation:blink 1s steps(2, start) infinite;
+      border-radius:2px;
+      height:1.2rem;
+    }
+    @keyframes blink { 50% { opacity: 0 } }
+    .controls{margin-top:16px; display:flex; gap:8px; flex-wrap:wrap}
+    button{background:transparent;border:1px solid rgba(255,255,255,0.08);color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer}
+    input[type=range]{width:160px}
+    small{color:rgba(255,255,255,0.6)}
+  </style>
+</head>
+<body>
+  <div class="card" role="main">
+    <div id="text" class="typewrap"></div><span class="cursor" aria-hidden="true"></span>
+
+    <div class="controls" aria-hidden="false">
+      <div>
+        <small>Velocidad (ms por carácter)</small><br>
+        <input id="speed" type="range" min="10" max="200" value="40" />
+      </div>
+      <div>
+        <small>Pausas automáticas</small><br>
+        <button id="restart">Reiniciar</button>
+      </div>
+      <div style="margin-left:auto">
+        <small>Modo</small><br>
+        <button id="autoBtn">Auto</button>
+        <button id="nextBtn">Siguiente</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- CONFIGURA AQUÍ tu contenido ---
+    const lines = [
+      "Hola. Esto es un texto que se va escribiendo como si alguien tecleara.",
+      "Puedes pausar en comas, puntos, o por frases completas.",
+      "Cambia la velocidad con el control, reinicia con el botón \"Reiniciar\",",
+      "o avanza manualmente con \"Siguiente\"."
+    ];
+    // ------------------------------------------------
+
+    const el = document.getElementById('text');
+    const cursor = document.querySelector('.cursor');
+    const speedControl = document.getElementById('speed');
+    const restartBtn = document.getElementById('restart');
+    const autoBtn = document.getElementById('autoBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    let speed = Number(speedControl.value);
+    let autoMode = true;
+    let lineIndex = 0;
+    let charIndex = 0;
+    let running = false;
+    let timeoutId = null;
+
+    // pausa extra según signo
+    function pauseFor(ch){
+      if (ch === ',' ) return 220;
+      if (ch === '.' || ch === '!' || ch === '?' ) return 420;
+      if (ch === '\n') return 300;
+      return 0;
+    }
+
+    function step(){
+      if (lineIndex >= lines.length) {
+        cursor.style.opacity = '0'; // fin
+        running = false;
+        return;
+      }
+      running = true;
+      const currentLine = lines[lineIndex];
+      if (charIndex <= currentLine.length - 1) {
+        el.textContent += currentLine[charIndex];
+        const extra = pauseFor(currentLine[charIndex]);
+        charIndex++;
+        timeoutId = setTimeout(step, speed + extra);
+      } else {
+        // fin de línea: agrega salto de línea visual
+        el.textContent += "\n\n";
+        charIndex = 0;
+        lineIndex++;
+        if (autoMode) {
+          // pequeña pausa entre líneas
+          timeoutId = setTimeout(step, 600);
+        } else {
+          running = false; // espera acción del usuario (Siguiente)
+        }
+      }
+    }
+
+    function startFromBeginning(){
+      clearTimeout(timeoutId);
+      el.textContent = '';
+      lineIndex = 0;
+      charIndex = 0;
+      cursor.style.opacity = '1';
+      if (!running) step();
+    }
+
+    // controles
+    speedControl.addEventListener('input', (e)=> {
+      speed = Number(e.target.value);
+    });
+
+    restartBtn.addEventListener('click', ()=> {
+      startFromBeginning();
+    });
+
+    autoBtn.addEventListener('click', ()=> {
+      autoMode = true;
+      if (!running) step();
+    });
+
+    nextBtn.addEventListener('click', ()=> {
+      autoMode = false;
+      if (!running) step();
+    });
+
+    // inicio automático al cargar
+    window.addEventListener('load', ()=> {
+      // en iOS/Safari a veces las animaciones quedan mejor si el usuario tocó la pantalla antes,
+      // pero en la mayoría de casos esto arranca bien.
+      step();
+    });
+
+    // soporte para tocar la pantalla y reiniciar (útil en iPhone)
+    document.body.addEventListener('dblclick', ()=> startFromBeginning());
+  </script>
+</body>
+</html>
